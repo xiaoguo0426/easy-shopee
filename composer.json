@@ -1,0 +1,18 @@
+{
+    "name": "onetech/easy-shopee",
+    "type": "library",
+    "require": {
+        "hanson/foundation-sdk": "^5.0"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Onetech\\EasyShopee\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "xiaoguo0426"
+        }
+    ]
+}

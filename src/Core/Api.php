@@ -1,19 +1,25 @@
 <?php
 
 
-namespace Onetech\EasyShopee\Oauth;
+namespace Onetech\EasyShopee\Core;
 
 
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
 use Hanson\Foundation\AbstractAPI;
 use Onetech\EasyShopee\Exception\ShopeeException;
+use Onetech\EasyShopee\Signature;
 
 class Api extends AbstractAPI
 {
 
     public const TOKEN_API_DOMAIN = 'https://partner.shopeemobile.com';
     public const SANDBOX_TOKEN_API_DOMAIN = 'https://partner.test-stable.shopeemobile.com';
+
+    /**
+     * @var string
+     */
+    private string $access_token;
 
     /**
      * @var string
@@ -25,12 +31,16 @@ class Api extends AbstractAPI
      */
     private string $app_secret;
 
+    private int $shop_id;
+
     private bool $sandbox;
 
-    public function __construct(string $app_key, string $app_secret, bool $sandbox)
+    public function __construct(string $access_token, string $app_key, string $app_secret, int $shop_id, bool $sandbox)
     {
+        $this->access_token = $access_token;
         $this->app_key = $app_key;
         $this->app_secret = $app_secret;
+        $this->shop_id = $shop_id;
         $this->sandbox = $sandbox;
     }
 
@@ -43,11 +53,12 @@ class Api extends AbstractAPI
      */
     public function request(string $uri, string $method, $params)
     {
-        $signature = new Signature($this->app_key, $this->app_secret);
+        $signature = new Signature($this->access_token, $this->app_key, $this->app_secret, $this->shop_id);
         $sign = $signature->gen($uri);
         $timestamp = $signature->timestamp;
 
-        $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&sign=%s', $this->app_key, $timestamp, $sign);
+        $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&access_token=%s&shop_id=%s&sign=%s', $this->app_key, $timestamp, $this->access_token, $this->shop_id, $sign);
+
         $client = new HttpClient();
         try {
             if ($method === 'POST') {
@@ -55,7 +66,9 @@ class Api extends AbstractAPI
                     'json' => $params
                 ]);
             } else {
-                $res = $client->get($url, $params);
+                $url .= '&' . http_build_query($params);
+                echo $url;
+                $res = $client->get($url, []);
             }
         } catch (GuzzleException $guzzleException) {
             $contents = $guzzleException->getResponse()->getBody()->getContents();

@@ -2,7 +2,9 @@
     "name": "onetech/easy-shopee",
     "type": "library",
     "require": {
-        "hanson/foundation-sdk": "^5.0"
+        "hanson/foundation-sdk": "^5.0",
+        "ext-json": "*",
+      "ext-http": "*"
     },
     "license": "MIT",
     "autoload": {

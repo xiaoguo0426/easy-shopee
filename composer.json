@@ -3,8 +3,7 @@
     "type": "library",
     "require": {
         "hanson/foundation-sdk": "^5.0",
-        "ext-json": "*",
-      "ext-http": "*"
+        "ext-json": "*"
     },
     "license": "MIT",
     "autoload": {

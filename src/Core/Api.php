@@ -67,7 +67,6 @@ class Api extends AbstractAPI
                 ]);
             } else {
                 $url .= '&' . http_build_query($params);
-                echo $url;
                 $res = $client->get($url, []);
             }
         } catch (GuzzleException $guzzleException) {

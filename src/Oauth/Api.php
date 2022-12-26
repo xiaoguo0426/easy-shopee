@@ -49,6 +49,7 @@ class Api extends AbstractAPI
 
         $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&sign=%s', $this->app_key, $timestamp, $sign);
         $client = new HttpClient();
+
         try {
             if ($method === 'POST') {
                 $res = $client->request('POST', $url, [
@@ -60,7 +61,7 @@ class Api extends AbstractAPI
         } catch (GuzzleException $guzzleException) {
             $contents = $guzzleException->getResponse()->getBody()->getContents();
             $result = json_decode($contents, true);
-            throw new ShopeeException(sprintf('Shopee API Error: [%s] %s', $result['error'], $result['message']));
+            throw new ShopeeException(sprintf('Shopee API Error: [%s] %s', $result['error'], $result['message'] ?? ''));
         }
 
         try {

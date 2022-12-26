@@ -15,5 +15,8 @@
         {
             "name": "xiaoguo0426"
         }
-    ]
+    ],
+    "require-dev": {
+        "ext-redis": "*"
+    }
 }

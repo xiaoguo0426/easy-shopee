@@ -31,16 +31,19 @@ class Api extends AbstractAPI
      */
     private string $app_secret;
 
-    private int $shop_id;
+    private ?int $shop_id;
+
+    private ?int $merchant_id;
 
     private bool $sandbox;
 
-    public function __construct(string $access_token, string $app_key, string $app_secret, int $shop_id, bool $sandbox)
+    public function __construct(string $access_token, string $app_key, string $app_secret, ?int $shop_id, ?int $merchant_id, bool $sandbox)
     {
         $this->access_token = $access_token;
         $this->app_key = $app_key;
         $this->app_secret = $app_secret;
         $this->shop_id = $shop_id;
+        $this->merchant_id = $merchant_id;
         $this->sandbox = $sandbox;
     }
 
@@ -56,7 +59,6 @@ class Api extends AbstractAPI
         $signature = new Signature($this->access_token, $this->app_key, $this->app_secret, $this->shop_id);
         $sign = $signature->gen($uri);
         $timestamp = $signature->timestamp;
-
         $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&access_token=%s&shop_id=%s&sign=%s', $this->app_key, $timestamp, $this->access_token, $this->shop_id, $sign);
 
         $client = new HttpClient();
@@ -104,5 +106,11 @@ class Api extends AbstractAPI
     public function get(string $uri, array $params)
     {
         return $this->request($uri, 'GET', $params);
+    }
+
+    public function setShopId(int $shop_id): Api
+    {
+        $this->shop_id = $shop_id;
+        return $this;
     }
 }

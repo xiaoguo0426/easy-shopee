@@ -12,9 +12,9 @@ class Signature
 
     private string $app_key;
     private string $app_secret;
-    private int $shop_id;
+    private int $unique_id;
 
-    public function __construct(string $access_token, string $app_key, string $app_secret, int $shop_id)
+    public function __construct(string $access_token, string $app_key, string $app_secret, int $unique_id)
     {
 
         $this->access_token = $access_token;
@@ -22,12 +22,12 @@ class Signature
 
         $this->app_key = $app_key;
         $this->app_secret = $app_secret;
-        $this->shop_id = $shop_id;
+        $this->unique_id = $unique_id;
     }
 
     public function gen(string $uri): string
     {
-        $base_str = sprintf('%s%s%s%s%s', $this->app_key, $uri, $this->timestamp, $this->access_token, $this->shop_id);
+        $base_str = sprintf('%s%s%s%s%s', $this->app_key, $uri, $this->timestamp, $this->access_token, $this->unique_id);
         return hash_hmac('sha256', $base_str, $this->app_secret);
     }
 }

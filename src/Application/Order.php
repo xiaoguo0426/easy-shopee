@@ -70,7 +70,7 @@ class Order extends Api
 
         return $this->get('/api/v2/order/get_order_detail', [
             'order_sn_list' => implode(',', $order_sn_list),
-            'response_optional_fields' => $response_optional_fields,
+            'response_optional_fields' => implode(',', $response_optional_fields),
         ]);
     }
 

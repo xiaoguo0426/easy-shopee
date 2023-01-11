@@ -267,4 +267,10 @@ class AccessToken extends AbstractAccessToken
         $this->main_account_id = $main_account_id;
         return $this;
     }
+
+    public function checkToken(): bool
+    {
+        return (bool) $this->getCache()->fetch($this->getCacheKey());
+    }
+
 }

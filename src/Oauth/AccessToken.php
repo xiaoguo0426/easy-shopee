@@ -6,6 +6,7 @@ namespace Onetech\EasyShopee\Oauth;
 
 use Hanson\Foundation\AbstractAccessToken;
 use Hanson\Foundation\Foundation;
+use Onetech\EasyShopee\Exception\InvalidArgumentsException;
 use Onetech\EasyShopee\Exception\ShopeeException;
 use Onetech\EasyShopee\Exception\TokenException;
 
@@ -70,16 +71,15 @@ class AccessToken extends AbstractAccessToken
 
     /**
      * @param false $forceRefresh
+     * @throws InvalidArgumentsException
      * @throws ShopeeException
-     * @return string
+     * @throws TokenException
+     * @return string|null
      */
-    public function getToken($forceRefresh = false): string
+    public function getToken($forceRefresh = false): ?string
     {
-        $cached = $this->getCache()->fetch($this->getCacheKey()) ?: $this->token;
-        if ($forceRefresh || empty($cached)) {
-
+        if (true === $forceRefresh) {
             $result = $this->getTokenFromServer();
-
             $this->checkTokenResponse($result);
 
             $this->setToken(
@@ -90,7 +90,15 @@ class AccessToken extends AbstractAccessToken
             return $token;
         }
 
-        return $cached;
+        if (false === $forceRefresh) {
+            $token = $this->getCache()->fetch($this->getCacheKey());
+            if (empty($token)) {
+                throw new TokenException("access_token doesn't exist");
+            }
+            return $token;
+        }
+
+        throw new InvalidArgumentsException('Invalid Argument');
     }
 
     /**

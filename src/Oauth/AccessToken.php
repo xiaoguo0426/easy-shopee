@@ -13,20 +13,21 @@ use Onetech\EasyShopee\Exception\TokenException;
 class AccessToken extends AbstractAccessToken
 {
 
-    protected int $app_key;
-    protected string $app_secret;
-    protected bool $sandbox;
+    private int $app_key;
+    private string $app_secret;
+    private bool $sandbox;
 
     protected string $code;
-    protected ?int $shop_id;
-    protected ?int $main_account_id;
+    private ?int $shop_id;
+    private ?int $main_account_id;
 
     protected $cacheKey;
-    protected string $cacheRefreshKey;
+    private string $cacheRefreshKey;
 
-    protected string $cacheShopIdKey;
-    protected string $cacheShopIdListKey;
-    protected string $cacheMerchantIdKey;
+    private string $cacheShopIdKey;
+    private string $cacheShopIdListKey;
+    private string $cacheMerchantIdKey;
+    private string $cacheMerchantRefreshKey;
 
     public function __construct(Foundation $app)
     {
@@ -39,10 +40,11 @@ class AccessToken extends AbstractAccessToken
 
         $this->cacheKey = 'shp-access::' . $this->app_key;
         $this->cacheRefreshKey = 'shp-refresh-access::' . $this->app_key;
+        $this->cacheMerchantRefreshKey = 'shp-merchant_refresh-access::' . $this->app_key;
 
         $this->cacheShopIdKey = 'shp-shop-id::' . $this->app_key;
         $this->cacheShopIdListKey = 'shp-shop-id-list::' . $this->app_key;
-        $this->cacheMerchantIdKey = 'shp-merchant-account-id::' . $this->app_key;
+        $this->cacheMerchantIdKey = 'shp-merchant-id-list::' . $this->app_key;
 
         $this->setAppId($this->app_key);
         $this->setSecret($this->app_secret);
@@ -81,7 +83,6 @@ class AccessToken extends AbstractAccessToken
         if (true === $forceRefresh) {
             $result = $this->getTokenFromServer();
             $this->checkTokenResponse($result);
-
             $this->setToken(
                 $token = $result[$this->tokenJsonKey],
                 $this->expiresJsonKey ? $result[$this->expiresJsonKey] : null
@@ -102,6 +103,97 @@ class AccessToken extends AbstractAccessToken
     }
 
     /**
+     * 生成Token
+     * @throws ShopeeException
+     */
+    public function genToken(): string
+    {
+
+        $result = $this->getTokenFromServer();
+        var_dump($result);
+//        $result = [
+//            'refresh_token' => '62666e6d506545426b6d4d5877674f64',
+//            'access_token' => '4b7a4b687056746f4f6d784c4149656d',
+//            'expire_in' => 14376,
+//            'request_id' => '9df1997cd9e0c8ed7ddf67db9a902020',
+//            'merchant_id_list' => [
+//                1305836
+//            ],
+//            'shop_id_list' => [
+//                401676784,
+//                688807704,
+//                401678549,
+//                401679543
+//            ],
+//            'error' => '',
+//            'message' => '',
+//        ];
+        $this->checkTokenResponse($result);
+
+        $token = $result[$this->tokenJsonKey];
+        $expires = $this->expiresJsonKey ? $result[$this->expiresJsonKey] : null;
+        $refresh_token = $result['refresh_token'];
+
+        if (isset($result['merchant_id_list'])) {
+            $merchant_id_list = $result['merchant_id_list'];
+            $this->setMerchantIdListCache($merchant_id_list);
+            foreach ($merchant_id_list as $merchant_id) {
+                $this->setMerchantRefreshToken($merchant_id, $refresh_token);
+            }
+        }
+
+        if (isset($result['shop_id_list'])) {
+            $shop_id_list = $result['shop_id_list'];
+            $this->setShopIdListCache($shop_id_list);
+
+            foreach ($shop_id_list as $shop_id) {
+                $this->setRefreshToken($shop_id, $refresh_token);
+                $this->storageToken($shop_id, $token, $expires);
+            }
+        }
+
+        return $token;
+    }
+
+    /**
+     * 获取access_token
+     * @throws TokenException
+     */
+    public function fetchToken(int $shop_id)
+    {
+        $token = $this->getCache()->fetch($this->genCacheKey($shop_id));
+        if (empty($token)) {
+            throw new TokenException("access_token doesn't exist");
+        }
+        return $token;
+    }
+
+    /**
+     * 存储access_token
+     * @param int $shop_id
+     * @param string $token
+     * @param int $expires
+     * @return $this
+     */
+    public function storageToken(int $shop_id, string $token, int $expires = 86400): AccessToken
+    {
+        $this->getCache()->save($this->genCacheKey($shop_id), $token, $expires);
+        $this->token = $token;
+
+        return $this;
+    }
+
+    /**
+     * @param int $shop_id
+     * @return string
+     */
+    public function genCacheKey(int $shop_id): string
+    {
+        return $this->getCacheKey() . "::$shop_id";
+    }
+
+
+    /**
      * @throws ShopeeException
      */
     public function checkTokenResponse($result)
@@ -109,30 +201,36 @@ class AccessToken extends AbstractAccessToken
         if (! empty($result['error'])) {
             throw new ShopeeException(sprintf('Shopee API Error: [%s] %s', $result['error'], $result['message'] ?? ''));
         }
-        $this->setRefreshToken($result);
-        if (isset($result['merchant_id_list'])) {
-            $shift = array_shift($result['merchant_id_list']);
-            $shift && $this->setMerchantIdCache($shift);
-            $result['shop_id_list'] && $this->setShopIdListCache($result['shop_id_list']);
-        }
     }
 
-    private function getCacheRefreshKey(): string
+    private function getCacheRefreshKey(int $shop_id): string
     {
-        return $this->cacheRefreshKey;
+        return $this->cacheRefreshKey . "::$shop_id";
     }
 
-    public function setRefreshToken($result): AccessToken
+    private function getCacheMerchantRefreshKey(int $merchant_id): string
     {
-        $refresh_token = $result['refresh_token'];
-        $this->getCache()->save($this->getCacheRefreshKey(), $refresh_token);
-
-        return $this;
+        return $this->cacheMerchantRefreshKey . "::$merchant_id";
     }
 
-    public function getRefreshToken(): string
+    public function setRefreshToken(int $shop_id, string $refresh_token): void
     {
-        return $this->getCache()->fetch($this->getCacheRefreshKey()) ?: '';
+        $this->getCache()->save($this->getCacheRefreshKey($shop_id), $refresh_token);
+    }
+
+    public function setMerchantRefreshToken(int $merchant_id, string $refresh_token): void
+    {
+        $this->getCache()->save($this->getCacheMerchantRefreshKey($merchant_id), $refresh_token);
+    }
+
+    public function getRefreshToken(int $shop_id): string
+    {
+        return $this->getCache()->fetch($this->getCacheRefreshKey($shop_id)) ?: '';
+    }
+
+    public function getMerchantRefreshToken(int $merchant_id): string
+    {
+        return $this->getCache()->fetch($this->getCacheMerchantRefreshKey($merchant_id)) ?: '';
     }
 
     private function getCacheShopIdKey(): string
@@ -150,17 +248,7 @@ class AccessToken extends AbstractAccessToken
         return $this->getCache()->fetch($this->getCacheShopIdKey()) ?: null;
     }
 
-    public function setMerchantIdCache(int $main_account_id): void
-    {
-        $this->getCache()->save($this->getCacheMerchantIdKey(), $main_account_id);
-    }
-
-    public function getMerchantIdCache(): ?int
-    {
-        return $this->getCache()->fetch($this->getCacheMerchantIdKey()) ?: null;
-    }
-
-    private function getCacheMerchantIdKey(): string
+    private function getCacheMerchantIdListKey(): string
     {
         return $this->cacheMerchantIdKey;
     }
@@ -194,16 +282,34 @@ class AccessToken extends AbstractAccessToken
         }
     }
 
+    public function setMerchantIdListCache(array $merchant_id_list): void
+    {
+        try {
+            $this->getCache()->save($this->getCacheMerchantIdListKey(), json_encode($merchant_id_list, JSON_THROW_ON_ERROR));
+        } catch (\JsonException $exception) {
+        }
+    }
+
+    public function getMerchantIdListCache(): array
+    {
+        $cache = $this->getCache()->fetch($this->getCacheMerchantIdListKey()) ?: '[]';
+        try {
+            return json_decode($cache, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            return [];
+        }
+    }
+
     /**
      * @throws ShopeeException
      * @throws TokenException
      */
-    public function refreshShop(string $refresh_token = ''): string
+    public function refreshShop(int $shop_id, string $refresh_token = ''): string
     {
 
         if ($refresh_token === '') {
             //使用默认存储方式获取
-            $refresh_token = $this->getRefreshToken();
+            $refresh_token = $this->getRefreshToken($shop_id);
             if (! $refresh_token) {
                 throw new TokenException('refresh token not exist.');
             }
@@ -212,16 +318,13 @@ class AccessToken extends AbstractAccessToken
         $response = (new Api($this->app_key, $this->app_secret, $this->sandbox))->post('/api/v2/auth/access_token/get', [
             'refresh_token' => $refresh_token,
             'partner_id' => $this->getAppId(),
-            'shop_id' => $this->getShopIdCache()
+            'shop_id' => $shop_id
         ]);
 
         $this->checkTokenResponse($response);
 
-        $token = $response[$this->tokenJsonKey];
-        $this->setToken(
-            $token,
-            $this->expiresJsonKey ? $response[$this->expiresJsonKey] : null
-        );
+        $this->setRefreshToken($shop_id, $response['refresh_token']);
+        $this->storageToken($shop_id, $token = $response[$this->tokenJsonKey], $this->expiresJsonKey ? $response[$this->expiresJsonKey] : null);
 
         return $token;
     }
@@ -230,29 +333,27 @@ class AccessToken extends AbstractAccessToken
      * @throws ShopeeException
      * @throws TokenException
      */
-    public function refreshMerchant(string $refresh_token = ''): string
+    public function refreshMerchant(int $merchant_id, string $refresh_token = ''): string
     {
 
         if ($refresh_token === '') {
             //使用默认存储方式获取
-            $refresh_token = $this->getRefreshToken();
+            $refresh_token = $this->getMerchantRefreshToken($merchant_id);
             if (! $refresh_token) {
                 throw new TokenException('refresh token not exist.');
             }
         }
+
         $response = (new Api($this->app_key, $this->app_secret, $this->sandbox))->post('/api/v2/auth/access_token/get', [
             'refresh_token' => $refresh_token,
             'partner_id' => $this->getAppId(),
-            'merchant_id' => $this->getMerchantIdCache()
+            'merchant_id' => $merchant_id
         ]);
 
         $this->checkTokenResponse($response);
 
-        $token = $response[$this->tokenJsonKey];
-        $this->setToken(
-            $token,
-            $this->expiresJsonKey ? $response[$this->expiresJsonKey] : null
-        );
+        $this->setMerchantRefreshToken($merchant_id, $response['refresh_token']);
+        $this->storageToken($merchant_id, $token = $response[$this->tokenJsonKey], $this->expiresJsonKey ? $response[$this->expiresJsonKey] : null);
 
         return $token;
     }

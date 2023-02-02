@@ -8,6 +8,7 @@ use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
 use Hanson\Foundation\AbstractAPI;
 use Onetech\EasyShopee\Exception\ShopeeException;
+use Onetech\EasyShopee\Oauth\AccessToken;
 use Onetech\EasyShopee\Signature;
 
 class Api extends AbstractAPI
@@ -17,9 +18,9 @@ class Api extends AbstractAPI
     public const SANDBOX_TOKEN_API_DOMAIN = 'https://partner.test-stable.shopeemobile.com';
 
     /**
-     * @var string
+     * @var AccessToken
      */
-    private string $access_token;
+    private AccessToken $accessToken;
 
     /**
      * @var string
@@ -33,17 +34,14 @@ class Api extends AbstractAPI
 
     private ?int $shop_id;
 
-    private ?int $merchant_id;
-
     private bool $sandbox;
 
-    public function __construct(string $access_token, string $app_key, string $app_secret, ?int $shop_id, ?int $merchant_id, bool $sandbox)
+    public function __construct(AccessToken $accessToken, string $app_key, string $app_secret, ?int $shop_id, bool $sandbox)
     {
-        $this->access_token = $access_token;
+        $this->accessToken = $accessToken;
         $this->app_key = $app_key;
         $this->app_secret = $app_secret;
         $this->shop_id = $shop_id;
-        $this->merchant_id = $merchant_id;
         $this->sandbox = $sandbox;
     }
 
@@ -56,10 +54,12 @@ class Api extends AbstractAPI
      */
     public function request(string $uri, string $method, $params)
     {
-        $signature = new Signature($this->access_token, $this->app_key, $this->app_secret, $this->shop_id);
+        $access_token = $this->accessToken->fetchToken($this->shop_id);
+
+        $signature = new Signature($access_token, $this->app_key, $this->app_secret, $this->shop_id);
         $sign = $signature->gen($uri);
         $timestamp = $signature->timestamp;
-        $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&access_token=%s&shop_id=%s&sign=%s', $this->app_key, $timestamp, $this->access_token, $this->shop_id, $sign);
+        $url = sprintf(($this->sandbox ? self::SANDBOX_TOKEN_API_DOMAIN : self::TOKEN_API_DOMAIN) . $uri . '?partner_id=%s&timestamp=%s&access_token=%s&shop_id=%s&sign=%s', $this->app_key, $timestamp, $access_token, $this->shop_id, $sign);
 
         $client = new HttpClient();
         try {

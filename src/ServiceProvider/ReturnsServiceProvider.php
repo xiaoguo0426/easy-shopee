@@ -15,7 +15,7 @@ class ReturnsServiceProvider implements ServiceProviderInterface
     public function register(Container $pimple)
     {
         $pimple['returns'] = function ($pimple) {
-            return new Returns($pimple->access_token->getToken(), $pimple->getConfig('app_key'), $pimple->getConfig('app_secret'), $pimple->access_token->getShopIdCache(), $pimple->access_token->getMerchantIdCache(), $pimple->getConfig('sandbox'));
+            return new Returns($pimple->access_token, $pimple->getConfig('app_key'), $pimple->getConfig('app_secret'), $pimple->access_token->getShopIdCache(), $pimple->getConfig('sandbox'));
         };
     }
 }

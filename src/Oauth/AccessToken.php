@@ -110,24 +110,7 @@ class AccessToken extends AbstractAccessToken
     {
 
         $result = $this->getTokenFromServer();
-        var_dump($result);
-//        $result = [
-//            'refresh_token' => '62666e6d506545426b6d4d5877674f64',
-//            'access_token' => '4b7a4b687056746f4f6d784c4149656d',
-//            'expire_in' => 14376,
-//            'request_id' => '9df1997cd9e0c8ed7ddf67db9a902020',
-//            'merchant_id_list' => [
-//                1305836
-//            ],
-//            'shop_id_list' => [
-//                401676784,
-//                688807704,
-//                401678549,
-//                401679543
-//            ],
-//            'error' => '',
-//            'message' => '',
-//        ];
+
         $this->checkTokenResponse($result);
 
         $token = $result[$this->tokenJsonKey];

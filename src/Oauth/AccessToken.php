@@ -360,9 +360,9 @@ class AccessToken extends AbstractAccessToken
         return $this;
     }
 
-    public function checkToken(): bool
+    public function checkToken(int $shop_id): bool
     {
-        return (bool) $this->getCache()->fetch($this->getCacheKey());
+        return (bool) $this->getCache()->fetch($this->genCacheKey($shop_id));
     }
 
 }
